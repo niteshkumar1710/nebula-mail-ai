@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Sidebar from '../components/Sidebar';
 import EmailList from '../components/EmailList';
 import EmailDetail from '../components/EmailDetail';
@@ -7,29 +7,6 @@ import Compose from '../components/Compose';
 import AIAssistant from '../components/AIAssistant';
 import Login from '../components/Login';
 import { AppState, ViewMode, Email } from '../types';
-
-const mockEmails: Email[] = [
-  {
-    id: '1',
-    sender: 'Sarah Connor',
-    recipients: ['me@example.com'],
-    subject: 'Project Update',
-    snippet: 'Here is the latest update on the project...',
-    body: 'Here is the latest update on the project. We have completed the first phase successfully.',
-    date: '10:30 AM',
-    read: false,
-  },
-  {
-    id: '2',
-    sender: 'David Smith',
-    recipients: ['me@example.com'],
-    subject: 'Meeting Tomorrow',
-    snippet: 'Let\'s meet at 3pm to discuss the new features.',
-    body: 'Let\'s meet at 3pm to discuss the new features. Please bring the mockups.',
-    date: 'Yesterday',
-    read: true,
-  }
-];
 
 export default function Home() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
@@ -39,33 +16,48 @@ export default function Home() {
     currentEmail: null,
     composeState: { to: '', subject: '', body: '', mode: 'compose' },
     filters: {},
-    emails: mockEmails,
-    loading: false,
+    emails: [],
+    loading: true, // Start loading as true while fetching auth
     error: null,
     assistantMessages: [
       { id: 'msg1', role: 'assistant', content: 'Hello! I am your AI assistant. I can help you send emails, search your inbox, and navigate.' }
     ]
   });
 
+  const fetchEmails = useCallback(async (view: ViewMode) => {
+    if (view !== 'inbox' && view !== 'sent') return;
+    
+    setState(s => ({ ...s, loading: true, error: null }));
+    try {
+      const label = view === 'inbox' ? 'INBOX' : 'SENT';
+      const res = await fetch(`http://localhost:8000/api/messages?label=${label}`, {
+        credentials: 'include'
+      });
+      if (!res.ok) throw new Error('Failed to fetch emails');
+      const data = await res.json();
+      setState(s => ({ ...s, emails: data.emails || [], loading: false }));
+    } catch (err: any) {
+      console.error(err);
+      setState(s => ({ ...s, error: err.message, loading: false }));
+    }
+  }, []);
+
   useEffect(() => {
-    // Check auth status
     fetch('http://localhost:8000/auth/status', {
-      // In a real app we need credentials: 'include' if we use cookies across ports
+      credentials: 'include'
     })
       .then(res => res.json())
       .then(data => {
-        // For testing stage 3 without real credentials, we will just mock auth if backend is unreachable
+        setIsAuthenticated(!!data.authenticated);
         if (data.authenticated) {
-          setIsAuthenticated(true);
-        } else {
-          setIsAuthenticated(false);
+          fetchEmails('inbox');
         }
       })
       .catch(err => {
         console.error('Failed to fetch auth status', err);
         setIsAuthenticated(false);
       });
-  }, []);
+  }, [fetchEmails]);
 
   if (isAuthenticated === null) {
     return <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Loading...</div>;
@@ -77,6 +69,9 @@ export default function Home() {
 
   const setView = (view: ViewMode) => {
     setState(s => ({ ...s, currentView: view, currentEmail: null }));
+    if (view === 'inbox' || view === 'sent') {
+      fetchEmails(view);
+    }
   };
 
   const handleSelectEmail = (email: Email) => {
@@ -95,7 +90,7 @@ export default function Home() {
       composeState: {
         to: email.sender,
         subject: email.subject.startsWith('Re:') ? email.subject : `Re: ${email.subject}`,
-        body: `\n\nOn ${email.date}, ${email.sender} wrote:\n> ${email.body}`,
+        body: `\n\nOn ${email.date}, ${email.sender} wrote:\n> ${email.body.replace(/\n/g, '\n> ')}`,
         mode: 'reply',
         replyToEmailId: email.id
       }
@@ -128,40 +123,54 @@ export default function Home() {
         setView={setView} 
       />
 
-      {state.currentView === 'inbox' && (
-        <EmailList 
-          emails={state.emails} 
-          onSelect={handleSelectEmail} 
-          title="Inbox" 
-        />
-      )}
-      
-      {state.currentView === 'sent' && (
-        <EmailList 
-          emails={[]} 
-          onSelect={handleSelectEmail} 
-          title="Sent" 
-        />
-      )}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+        {state.loading && state.currentView !== 'compose' && state.currentView !== 'detail' && (
+          <div style={{ padding: '1rem', borderBottom: '1px solid var(--border-color)', backgroundColor: 'var(--panel-bg)' }}>
+            Loading emails...
+          </div>
+        )}
+        
+        {state.error && (
+          <div style={{ padding: '1rem', color: 'white', backgroundColor: 'var(--danger-color)' }}>
+            {state.error}
+          </div>
+        )}
 
-      {state.currentView === 'detail' && state.currentEmail && (
-        <EmailDetail 
-          email={state.currentEmail} 
-          onBack={() => setView('inbox')}
-          onReply={handleReply}
-        />
-      )}
+        {state.currentView === 'inbox' && !state.loading && (
+          <EmailList 
+            emails={state.emails} 
+            onSelect={handleSelectEmail} 
+            title="Inbox" 
+          />
+        )}
+        
+        {state.currentView === 'sent' && !state.loading && (
+          <EmailList 
+            emails={state.emails} 
+            onSelect={handleSelectEmail} 
+            title="Sent" 
+          />
+        )}
 
-      {state.currentView === 'compose' && (
-        <Compose 
-          initialState={state.composeState}
-          onSend={(composeData) => {
-            alert('Email sent! (mock)');
-            setView('inbox');
-          }}
-          onDiscard={() => setView('inbox')}
-        />
-      )}
+        {state.currentView === 'detail' && state.currentEmail && (
+          <EmailDetail 
+            email={state.currentEmail} 
+            onBack={() => setView('inbox')}
+            onReply={handleReply}
+          />
+        )}
+
+        {state.currentView === 'compose' && (
+          <Compose 
+            initialState={state.composeState}
+            onSend={(composeData) => {
+              alert('Email sending is coming in Stage 6! (mock)');
+              setView('inbox');
+            }}
+            onDiscard={() => setView('inbox')}
+          />
+        )}
+      </div>
 
       <AIAssistant 
         messages={state.assistantMessages}
