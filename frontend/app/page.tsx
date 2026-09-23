@@ -97,23 +97,49 @@ export default function Home() {
     }));
   };
 
-  const handleSendMessage = (msg: string) => {
+  const handleSendMessage = async (msg: string) => {
     const newMsg = { id: Date.now().toString(), role: 'user' as const, content: msg };
     setState(s => ({
       ...s,
       assistantMessages: [...s.assistantMessages, newMsg]
     }));
     
-    setTimeout(() => {
+    try {
+      // Build context string from current view
+      let contextStr = `Current View: ${state.currentView}`;
+      if (state.currentEmail && (state.currentView === 'detail' || state.currentView === 'compose')) {
+        contextStr += `\nCurrently looking at Email Subject: ${state.currentEmail.subject}\nBody:\n${state.currentEmail.body}`;
+      } else if (state.emails.length > 0) {
+        contextStr += `\nUser has ${state.emails.length} emails in the list. First few subjects:\n${state.emails.slice(0,3).map(e => e.subject).join('\n')}`;
+      }
+
+      const res = await fetch('http://localhost:8000/api/ai/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: msg, context: contextStr })
+      });
+
+      if (!res.ok) throw new Error('Failed to get AI response');
+      const data = await res.json();
+
       setState(s => ({
         ...s,
         assistantMessages: [...s.assistantMessages, { 
-          id: (Date.now() + 1).toString(), 
+          id: Date.now().toString(), 
           role: 'assistant', 
-          content: 'I am a placeholder AI. The real Gemini integration will be added in Stage 7.' 
+          content: data.response 
         }]
       }));
-    }, 1000);
+    } catch (err: any) {
+      setState(s => ({
+        ...s,
+        assistantMessages: [...s.assistantMessages, { 
+          id: Date.now().toString(), 
+          role: 'assistant', 
+          content: `Sorry, I encountered an error: ${err.message}` 
+        }]
+      }));
+    }
   };
 
   return (

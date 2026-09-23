@@ -5,10 +5,11 @@ from starlette.middleware.sessions import SessionMiddleware
 from dotenv import load_dotenv
 
 # Load env before importing other modules
-load_dotenv()
+load_dotenv(override=True)
 
 from backend.gmail.oauth import router as oauth_router
 from backend.gmail.messages import router as messages_router
+from backend.ai.router import router as ai_router
 
 app = FastAPI(title="Nebula Mail AI Backend")
 
@@ -32,6 +33,7 @@ app.add_middleware(
 
 app.include_router(oauth_router, prefix="/auth", tags=["Auth"])
 app.include_router(messages_router, prefix="/api/messages", tags=["Messages"])
+app.include_router(ai_router, prefix="/api/ai", tags=["AI"])
 
 @app.get("/")
 def read_root():
