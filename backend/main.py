@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from backend.gmail.oauth import router as oauth_router
+from backend.gmail.messages import router as messages_router
 
 app = FastAPI(title="Nebula Mail AI Backend")
 
@@ -30,6 +31,7 @@ app.add_middleware(
 )
 
 app.include_router(oauth_router, prefix="/auth", tags=["Auth"])
+app.include_router(messages_router, prefix="/api/messages", tags=["Messages"])
 
 @app.get("/")
 def read_root():
