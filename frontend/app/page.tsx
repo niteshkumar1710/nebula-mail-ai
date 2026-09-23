@@ -1,69 +1,142 @@
-import Image from "next/image";
-import styles from "./page.module.css";
+'use client';
+import React, { useState } from 'react';
+import Sidebar from '../components/Sidebar';
+import EmailList from '../components/EmailList';
+import EmailDetail from '../components/EmailDetail';
+import Compose from '../components/Compose';
+import AIAssistant from '../components/AIAssistant';
+import { AppState, ViewMode, Email, ComposeState } from '../types';
+
+const mockEmails: Email[] = [
+  {
+    id: '1',
+    sender: 'Sarah Connor',
+    recipients: ['me@example.com'],
+    subject: 'Project Update',
+    snippet: 'Here is the latest update on the project...',
+    body: 'Here is the latest update on the project. We have completed the first phase successfully.',
+    date: '10:30 AM',
+    read: false,
+  },
+  {
+    id: '2',
+    sender: 'David Smith',
+    recipients: ['me@example.com'],
+    subject: 'Meeting Tomorrow',
+    snippet: 'Let\'s meet at 3pm to discuss the new features.',
+    body: 'Let\'s meet at 3pm to discuss the new features. Please bring the mockups.',
+    date: 'Yesterday',
+    read: true,
+  }
+];
 
 export default function Home() {
+  const [state, setState] = useState<AppState>({
+    currentView: 'inbox',
+    currentEmail: null,
+    composeState: { to: '', subject: '', body: '', mode: 'compose' },
+    filters: {},
+    emails: mockEmails,
+    loading: false,
+    error: null,
+    assistantMessages: [
+      { id: 'msg1', role: 'assistant', content: 'Hello! I am your AI assistant. I can help you send emails, search your inbox, and navigate.' }
+    ]
+  });
+
+  const setView = (view: ViewMode) => {
+    setState(s => ({ ...s, currentView: view, currentEmail: null }));
+  };
+
+  const handleSelectEmail = (email: Email) => {
+    setState(s => ({
+      ...s,
+      currentView: 'detail',
+      currentEmail: { ...email, read: true },
+      emails: s.emails.map(e => e.id === email.id ? { ...e, read: true } : e)
+    }));
+  };
+
+  const handleReply = (email: Email) => {
+    setState(s => ({
+      ...s,
+      currentView: 'compose',
+      composeState: {
+        to: email.sender,
+        subject: email.subject.startsWith('Re:') ? email.subject : `Re: ${email.subject}`,
+        body: `\n\nOn ${email.date}, ${email.sender} wrote:\n> ${email.body}`,
+        mode: 'reply',
+        replyToEmailId: email.id
+      }
+    }));
+  };
+
+  const handleSendMessage = (msg: string) => {
+    // Mock AI interaction
+    const newMsg = { id: Date.now().toString(), role: 'user' as const, content: msg };
+    setState(s => ({
+      ...s,
+      assistantMessages: [...s.assistantMessages, newMsg]
+    }));
+    
+    setTimeout(() => {
+      setState(s => ({
+        ...s,
+        assistantMessages: [...s.assistantMessages, { 
+          id: (Date.now() + 1).toString(), 
+          role: 'assistant', 
+          content: 'I am a placeholder AI. The real Gemini integration will be added in Stage 7.' 
+        }]
+      }));
+    }, 1000);
+  };
+
   return (
-    <div className={styles.page}>
-      <main className={styles.main}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
+    <div className="layout-container">
+      <Sidebar 
+        currentView={state.currentView} 
+        setView={setView} 
+      />
+
+      {state.currentView === 'inbox' && (
+        <EmailList 
+          emails={state.emails} 
+          onSelect={handleSelectEmail} 
+          title="Inbox" 
         />
-        <div className={styles.intro}>
-          <h1>
-            To get started, edit the{" "}
-            <code className={styles.code}>page.tsx</code> file.
-          </h1>
-          <p>
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className={styles.ctas}>
-          <a
-            className={styles.primary}
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className={styles.logo}
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className={styles.secondary}
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+      )}
+      
+      {state.currentView === 'sent' && (
+        <EmailList 
+          emails={[]} 
+          onSelect={handleSelectEmail} 
+          title="Sent" 
+        />
+      )}
+
+      {state.currentView === 'detail' && state.currentEmail && (
+        <EmailDetail 
+          email={state.currentEmail} 
+          onBack={() => setView('inbox')}
+          onReply={handleReply}
+        />
+      )}
+
+      {state.currentView === 'compose' && (
+        <Compose 
+          initialState={state.composeState}
+          onSend={(composeData) => {
+            alert('Email sent! (mock)');
+            setView('inbox');
+          }}
+          onDiscard={() => setView('inbox')}
+        />
+      )}
+
+      <AIAssistant 
+        messages={state.assistantMessages}
+        onSendMessage={handleSendMessage}
+      />
     </div>
   );
 }
