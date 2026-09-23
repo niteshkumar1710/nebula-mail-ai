@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+httpx
+authlib
+itsdangerous
+python-dotenv
+google-api-python-client
+google-auth
+google-auth-oauthlib
+pydantic
+pydantic-settings

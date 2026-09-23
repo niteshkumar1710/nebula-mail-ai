@@ -1,11 +1,12 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Sidebar from '../components/Sidebar';
 import EmailList from '../components/EmailList';
 import EmailDetail from '../components/EmailDetail';
 import Compose from '../components/Compose';
 import AIAssistant from '../components/AIAssistant';
-import { AppState, ViewMode, Email, ComposeState } from '../types';
+import Login from '../components/Login';
+import { AppState, ViewMode, Email } from '../types';
 
 const mockEmails: Email[] = [
   {
@@ -31,6 +32,8 @@ const mockEmails: Email[] = [
 ];
 
 export default function Home() {
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+
   const [state, setState] = useState<AppState>({
     currentView: 'inbox',
     currentEmail: null,
@@ -43,6 +46,34 @@ export default function Home() {
       { id: 'msg1', role: 'assistant', content: 'Hello! I am your AI assistant. I can help you send emails, search your inbox, and navigate.' }
     ]
   });
+
+  useEffect(() => {
+    // Check auth status
+    fetch('http://localhost:8000/auth/status', {
+      // In a real app we need credentials: 'include' if we use cookies across ports
+    })
+      .then(res => res.json())
+      .then(data => {
+        // For testing stage 3 without real credentials, we will just mock auth if backend is unreachable
+        if (data.authenticated) {
+          setIsAuthenticated(true);
+        } else {
+          setIsAuthenticated(false);
+        }
+      })
+      .catch(err => {
+        console.error('Failed to fetch auth status', err);
+        setIsAuthenticated(false);
+      });
+  }, []);
+
+  if (isAuthenticated === null) {
+    return <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Loading...</div>;
+  }
+
+  if (!isAuthenticated) {
+    return <Login />;
+  }
 
   const setView = (view: ViewMode) => {
     setState(s => ({ ...s, currentView: view, currentEmail: null }));
@@ -72,7 +103,6 @@ export default function Home() {
   };
 
   const handleSendMessage = (msg: string) => {
-    // Mock AI interaction
     const newMsg = { id: Date.now().toString(), role: 'user' as const, content: msg };
     setState(s => ({
       ...s,
