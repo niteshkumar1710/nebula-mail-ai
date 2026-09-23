@@ -163,9 +163,29 @@ export default function Home() {
         {state.currentView === 'compose' && (
           <Compose 
             initialState={state.composeState}
-            onSend={(composeData) => {
-              alert('Email sending is coming in Stage 6! (mock)');
-              setView('inbox');
+            onSend={async (composeData) => {
+              setState(s => ({ ...s, loading: true }));
+              try {
+                const res = await fetch('http://localhost:8000/api/messages/send', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  credentials: 'include',
+                  body: JSON.stringify({
+                    to: composeData.to,
+                    subject: composeData.subject,
+                    body: composeData.body,
+                    reply_to_email_id: composeData.replyToEmailId
+                  })
+                });
+                
+                if (!res.ok) throw new Error('Failed to send email');
+                alert('Email sent successfully!');
+                setView('inbox');
+              } catch (err: any) {
+                console.error(err);
+                alert('Error sending email: ' + err.message);
+                setState(s => ({ ...s, loading: false }));
+              }
             }}
             onDiscard={() => setView('inbox')}
           />

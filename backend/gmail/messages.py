@@ -1,6 +1,13 @@
 from fastapi import APIRouter, Request, HTTPException, Query
 from backend.gmail.oauth import TOKEN_STORE
-from backend.gmail.service import get_gmail_service, parse_message_headers, get_email_body
+from backend.gmail.service import get_gmail_service, parse_message_headers, get_email_body, create_message, send_message
+from pydantic import BaseModel
+
+class SendEmailRequest(BaseModel):
+    to: str
+    subject: str
+    body: str
+    reply_to_email_id: str | None = None
 
 router = APIRouter()
 
@@ -53,5 +60,25 @@ def get_messages(request: Request, label: str = "INBOX", max_results: int = 15, 
                 continue
                 
         return {"emails": email_list}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/send")
+def send_email(req: SendEmailRequest, request: Request):
+    token = get_token(request)
+    service = get_gmail_service(token)
+    
+    # We use 'me' as sender, Gmail will automatically use the authenticated user's email
+    try:
+        msg_body = create_message(
+            sender="me",
+            to=req.to,
+            subject=req.subject,
+            message_text=req.body,
+            # we can pass a threadId here if we want to reply in thread
+        )
+        
+        result = send_message(service, "me", msg_body)
+        return {"status": "success", "id": result['id']}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

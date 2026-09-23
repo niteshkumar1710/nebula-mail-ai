@@ -2,6 +2,7 @@ from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 import base64
 import os
+from email.message import EmailMessage
 
 def get_gmail_service(token_info):
     """
@@ -55,3 +56,28 @@ def get_email_body(payload):
         return base64.urlsafe_b64decode(payload['body']['data']).decode('utf-8', errors='replace')
         
     return "Could not read email body."
+
+def create_message(sender, to, subject, message_text, thread_id=None):
+    """Create a message for an email."""
+    message = EmailMessage()
+    message.set_content(message_text)
+    message['To'] = to
+    message['From'] = sender
+    message['Subject'] = subject
+
+    encoded_message = base64.urlsafe_b64encode(message.as_bytes()).decode()
+    
+    msg_body = {'raw': encoded_message}
+    if thread_id:
+        msg_body['threadId'] = thread_id
+        
+    return msg_body
+
+def send_message(service, user_id, message):
+    """Send an email message."""
+    try:
+        message = (service.users().messages().send(userId=user_id, body=message).execute())
+        return message
+    except Exception as error:
+        print(f"An error occurred: {error}")
+        raise error
