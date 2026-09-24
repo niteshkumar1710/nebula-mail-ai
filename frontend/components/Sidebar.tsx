@@ -1,6 +1,6 @@
 'use client';
 import React from 'react';
-import { AppState, ViewMode } from '../types';
+import { ViewMode } from '../types';
 
 interface SidebarProps {
   currentView: ViewMode;

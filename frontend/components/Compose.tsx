@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { ComposeState } from '../types';
 
 interface ComposeProps {
@@ -10,10 +10,6 @@ interface ComposeProps {
 
 export default function Compose({ initialState, onSend, onDiscard }: ComposeProps) {
   const [state, setState] = useState<ComposeState>(initialState);
-
-  useEffect(() => {
-    setState(initialState);
-  }, [initialState]);
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: 'var(--bg-color)' }}>

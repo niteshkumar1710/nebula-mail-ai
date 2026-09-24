@@ -36,9 +36,10 @@ export default function Home() {
       if (!res.ok) throw new Error('Failed to fetch emails');
       const data = await res.json();
       setState(s => ({ ...s, emails: data.emails || [], loading: false }));
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setState(s => ({ ...s, error: err.message, loading: false }));
+      const msg = err instanceof Error ? err.message : String(err);
+      setState(s => ({ ...s, error: msg, loading: false }));
     }
   }, []);
 
@@ -90,7 +91,7 @@ export default function Home() {
       composeState: {
         to: email.sender,
         subject: email.subject.startsWith('Re:') ? email.subject : `Re: ${email.subject}`,
-        body: `\n\nOn ${email.date}, ${email.sender} wrote:\n> ${email.body.replace(/\n/g, '\n> ')}`,
+        body: `\n\nOn ${email.date}, ${email.sender} wrote:\n> ${(email.body || email.snippet || '').replace(/\\n/g, '\n> ')}`,
         mode: 'reply',
         replyToEmailId: email.id
       }
@@ -107,8 +108,10 @@ export default function Home() {
     try {
       // Build context string from current view
       let contextStr = `Current View: ${state.currentView}`;
-      if (state.currentEmail && (state.currentView === 'detail' || state.currentView === 'compose')) {
-        contextStr += `\nCurrently looking at Email Subject: ${state.currentEmail.subject}\nBody:\n${state.currentEmail.body}`;
+      if (state.currentView === 'compose') {
+        contextStr += `\nCurrently composing draft: To: ${state.composeState.to}, Subject: ${state.composeState.subject}, Body: ${state.composeState.body}, Mode: ${state.composeState.mode}, ReplyToEmailId: ${state.composeState.replyToEmailId || 'none'}`;
+      } else if (state.currentEmail && state.currentView === 'detail') {
+        contextStr += `\nCurrently looking at Email ID: ${state.currentEmail.id}\nFrom: ${state.currentEmail.sender}\nSubject: ${state.currentEmail.subject}\nBody:\n${state.currentEmail.body}`;
       } else if (state.emails.length > 0) {
         contextStr += `\nUser has ${state.emails.length} emails in the list. First few subjects:\n${state.emails.slice(0,3).map(e => e.subject).join('\n')}`;
       }
@@ -137,7 +140,9 @@ export default function Home() {
             ...s.composeState,
             to: payload.to || s.composeState.to,
             subject: payload.subject || s.composeState.subject,
-            body: payload.body || s.composeState.body
+            body: payload.body || s.composeState.body,
+            mode: payload.reply_to_email_id ? 'reply' : 'compose',
+            replyToEmailId: payload.reply_to_email_id || s.composeState.replyToEmailId
           }
         }));
       }
@@ -150,14 +155,15 @@ export default function Home() {
           content: data.assistant_message || 'No response.' 
         }]
       }));
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
+      const msg = err instanceof Error ? err.message : String(err);
       setState(s => ({
         ...s,
         assistantMessages: [...s.assistantMessages, { 
           id: Date.now().toString(), 
           role: 'assistant', 
-          content: `Sorry, I encountered an error: ${err.message}` 
+          content: `Sorry, I encountered an error: ${msg}` 
         }]
       }));
     }
@@ -209,6 +215,7 @@ export default function Home() {
 
         {state.currentView === 'compose' && (
           <Compose 
+            key={JSON.stringify(state.composeState)}
             initialState={state.composeState}
             onSend={async (composeData) => {
               setState(s => ({ ...s, loading: true }));
@@ -228,9 +235,10 @@ export default function Home() {
                 if (!res.ok) throw new Error('Failed to send email');
                 alert('Email sent successfully!');
                 setView('inbox');
-              } catch (err: any) {
+              } catch (err: unknown) {
                 console.error(err);
-                alert('Error sending email: ' + err.message);
+                const msg = err instanceof Error ? err.message : String(err);
+                alert('Error sending email: ' + msg);
                 setState(s => ({ ...s, loading: false }));
               }
             }}
