@@ -20,11 +20,18 @@ def get_gmail_service(token_info):
     service = build('gmail', 'v1', credentials=creds)
     return service
 
+from email.utils import parseaddr
+
 def parse_message_headers(headers):
     header_dict = {h['name'].lower(): h['value'] for h in headers}
+    
+    sender_raw = header_dict.get('from', 'Unknown Sender')
+    _, sender_email = parseaddr(sender_raw)
+    sender = sender_email if sender_email else sender_raw
+
     return {
         'subject': header_dict.get('subject', '(No Subject)'),
-        'sender': header_dict.get('from', 'Unknown Sender'),
+        'sender': sender,
         'to': header_dict.get('to', ''),
         'date': header_dict.get('date', '')
     }

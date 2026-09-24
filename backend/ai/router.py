@@ -24,6 +24,7 @@ class UIActionPayload(BaseModel):
     body: str | None = None
     email_id: str | None = None
     query: str | None = None
+    reply_to_email_id: str | None = None
 
 class AIResponseSchema(BaseModel):
     assistant_message: str
@@ -44,7 +45,8 @@ def ai_chat(req: ChatRequest, request: Request):
         system_instruction = """
 You are a helpful AI assistant integrated into an email application. Help the user manage, read, and write emails.
 When the user wants to compose an email, you should output ui_action="fill_compose" with the required fields (to, subject, body), and ask them for confirmation.
-ONLY AFTER the user explicitly confirms (e.g., "Yes, send it"), you should output backend_action="send_email" with the payload.
+If the user asks to reply to the currently viewed email, ensure you populate the 'to' field with the original sender's email address, prefix the subject with 'Re: ', and set 'reply_to_email_id' to the current email's ID.
+ONLY AFTER the user explicitly confirms (e.g., "Yes, send it"), you should output backend_action="send_email" with the payload containing ALL fields (to, subject, body, and reply_to_email_id if it's a reply).
 DO NOT claim an email was sent unless you actually use the backend_action="send_email" and it succeeds.
 Your response must strictly match the AIResponseSchema JSON format.
 """
@@ -84,7 +86,8 @@ Your response must strictly match the AIResponseSchema JSON format.
                     sender="me",
                     to=payload.get("to", ""),
                     subject=payload.get("subject", ""),
-                    message_text=payload.get("body", "")
+                    message_text=payload.get("body", ""),
+                    thread_id=payload.get("reply_to_email_id")
                 )
                 result = send_message(service, "me", msg_body)
                 

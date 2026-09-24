@@ -75,7 +75,7 @@ def send_email(req: SendEmailRequest, request: Request):
             to=req.to,
             subject=req.subject,
             message_text=req.body,
-            # we can pass a threadId here if we want to reply in thread
+            thread_id=req.reply_to_email_id
         )
         
         result = send_message(service, "me", msg_body)
