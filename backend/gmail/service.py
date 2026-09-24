@@ -34,8 +34,9 @@ def get_email_body(payload):
     Recursively extract the plain text body from the payload.
     """
     if 'parts' in payload:
+        # First try text/html
         for part in payload['parts']:
-            if part['mimeType'] == 'text/plain':
+            if part['mimeType'] == 'text/html':
                 data = part['body'].get('data')
                 if data:
                     return base64.urlsafe_b64decode(data).decode('utf-8', errors='replace')
@@ -45,9 +46,9 @@ def get_email_body(payload):
                 if body and body != "Could not read email body.":
                     return body
                     
-        # If no text/plain, try text/html
+        # If no text/html, try text/plain
         for part in payload['parts']:
-            if part['mimeType'] == 'text/html':
+            if part['mimeType'] == 'text/plain':
                 data = part['body'].get('data')
                 if data:
                     return base64.urlsafe_b64decode(data).decode('utf-8', errors='replace')

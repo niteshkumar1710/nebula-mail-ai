@@ -11,12 +11,14 @@ export default function Sidebar({ currentView, setView }: SidebarProps) {
   return (
     <div style={{
       width: '240px',
+      flexShrink: 0,
       backgroundColor: 'var(--panel-bg)',
       borderRight: '1px solid var(--border-color)',
       padding: '1rem',
       display: 'flex',
       flexDirection: 'column',
-      gap: '0.5rem'
+      gap: '0.5rem',
+      overflowY: 'auto'
     }}>
       <h2 style={{ fontSize: '1.2rem', fontWeight: 600, marginBottom: '1rem', color: 'var(--accent-color)' }}>
         Nebula Mail

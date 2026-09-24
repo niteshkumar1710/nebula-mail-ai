@@ -18,7 +18,8 @@ export default function AIAssistant({ messages, onSendMessage }: AIAssistantProp
 
   return (
     <div style={{
-      width: '320px',
+      width: '340px',
+      flexShrink: 0,
       backgroundColor: 'var(--panel-bg)',
       borderLeft: '1px solid var(--border-color)',
       display: 'flex',

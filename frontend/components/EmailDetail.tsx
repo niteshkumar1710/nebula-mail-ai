@@ -1,5 +1,6 @@
 'use client';
 import React from 'react';
+import DOMPurify from 'isomorphic-dompurify';
 import { Email } from '../types';
 
 interface EmailDetailProps {
@@ -9,6 +10,39 @@ interface EmailDetailProps {
 }
 
 export default function EmailDetail({ email, onBack, onReply }: EmailDetailProps) {
+  const content = email.body || email.snippet || '';
+  const isHtml = /<[a-z][\s\S]*>/i.test(content);
+
+  const renderContent = () => {
+    if (isHtml) {
+      const sanitizedHtml = DOMPurify.sanitize(content, {
+        ADD_ATTR: ['target']
+      });
+      return (
+        <div 
+          className="email-html-content"
+          dangerouslySetInnerHTML={{ __html: sanitizedHtml }} 
+          style={{ 
+            lineHeight: 1.6, 
+            backgroundColor: 'white', 
+            color: 'black', 
+            padding: '1rem', 
+            borderRadius: '8px',
+            border: '1px solid var(--border-color)',
+            overflowX: 'auto',
+            minHeight: '200px'
+          }} 
+        />
+      );
+    }
+    
+    return (
+      <div style={{ lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+        {content}
+      </div>
+    );
+  };
+
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: 'var(--bg-color)', overflowY: 'auto' }}>
       <div style={{ padding: '1rem', borderBottom: '1px solid var(--border-color)', backgroundColor: 'var(--panel-bg)', display: 'flex', gap: '1rem', alignItems: 'center' }}>
@@ -29,8 +63,8 @@ export default function EmailDetail({ email, onBack, onReply }: EmailDetailProps
           </div>
         </div>
 
-        <div style={{ lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
-          {email.body || email.snippet}
+        <div style={{ marginTop: '1rem' }}>
+          {renderContent()}
         </div>
       </div>
     </div>

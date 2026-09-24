@@ -116,21 +116,42 @@ export default function Home() {
       const res = await fetch('http://localhost:8000/api/ai/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: msg, context: contextStr })
+        credentials: 'include',
+        body: JSON.stringify({ 
+          message: msg, 
+          context: contextStr,
+          history: state.assistantMessages.map(m => ({ role: m.role, content: m.content })) 
+        })
       });
 
       if (!res.ok) throw new Error('Failed to get AI response');
       const data = await res.json();
+      
+      // Handle UI Actions
+      if (data.ui_action === 'open_compose' || data.ui_action === 'fill_compose') {
+        const payload = data.ui_action_payload || {};
+        setState(s => ({
+          ...s,
+          currentView: 'compose',
+          composeState: {
+            ...s.composeState,
+            to: payload.to || s.composeState.to,
+            subject: payload.subject || s.composeState.subject,
+            body: payload.body || s.composeState.body
+          }
+        }));
+      }
 
       setState(s => ({
         ...s,
         assistantMessages: [...s.assistantMessages, { 
           id: Date.now().toString(), 
           role: 'assistant', 
-          content: data.response 
+          content: data.assistant_message || 'No response.' 
         }]
       }));
     } catch (err: any) {
+      console.error(err);
       setState(s => ({
         ...s,
         assistantMessages: [...s.assistantMessages, { 
@@ -149,7 +170,7 @@ export default function Home() {
         setView={setView} 
       />
 
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflowY: 'auto' }}>
         {state.loading && state.currentView !== 'compose' && state.currentView !== 'detail' && (
           <div style={{ padding: '1rem', borderBottom: '1px solid var(--border-color)', backgroundColor: 'var(--panel-bg)' }}>
             Loading emails...
